@@ -1,128 +1,177 @@
 #include "ServerClass.h"
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#include <iostream>
-using namespace std;
-int wait()
-{
-	WSAData ws;
-	ADDRINFOA hints;
-	ADDRINFO* addrRes = NULL;
+#include <fstream>
+#include <string.h>
+#include <strsafe.h>
 
-	int result = WSAStartup(MAKEWORD(2, 2), &ws);
-	if (result != 0)
+
+using namespace std;
+
+void ErrorExit(LPTSTR lpszFunction)
+{
+	// Retrieve the system error message for the last-error code
+
+	LPVOID lpMsgBuf;
+	LPVOID lpDisplayBuf;
+	DWORD dw = GetLastError();
+
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
+		FORMAT_MESSAGE_IGNORE_INSERTS,
+		NULL,
+		dw,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&lpMsgBuf,
+		0, NULL);
+
+	// Display the error message and exit the process
+
+	lpDisplayBuf = (LPVOID)LocalAlloc(LMEM_ZEROINIT,
+		(lstrlen((LPCTSTR)lpMsgBuf) + lstrlen((LPCTSTR)lpszFunction) + 40) * sizeof(TCHAR));
+	StringCchPrintf((LPTSTR)lpDisplayBuf,
+		LocalSize(lpDisplayBuf) / sizeof(TCHAR),
+		TEXT("%s failed with error %d: %s"),
+		lpszFunction, dw, lpMsgBuf);
+	MessageBox(NULL, (LPCTSTR)lpDisplayBuf, TEXT("Error"), MB_OK);
+
+	LocalFree(lpMsgBuf);
+	LocalFree(lpDisplayBuf);
+	ExitProcess(dw);
+}
+ServerClass::ServerClass()
+{
+	loadConfig();
+	WSAData ws;
+	if (WSAStartup(MAKEWORD(2, 2), &ws))
 	{
-		std::cout << "error startup";
-		return -4;
+		log.write("Startup error");
 	}
-	cout << "end startup" << endl;
-	memset(&hints, 0, sizeof(hints));
+	ADDRINFOA hints = { 0 };
 
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
+	if (getaddrinfo(NULL, port.c_str(), &hints, &addrRes))
+	{
+		ErrorExit(const_cast<LPTSTR>(TEXT("error")));
+		log.write("getaddrinfo error");
+		freeaddrinfo(addrRes);
+		WSACleanup();
+		bIsFailed = true;
+	}
+	if ((ListenSocket = socket(addrRes->ai_family, addrRes->ai_socktype, addrRes->ai_protocol)) == INVALID_SOCKET)
+	{
+		log.write("socket error");
+		freeaddrinfo(addrRes);
+		WSACleanup();
+		bIsFailed = true;
+	}
+	if (bind(ListenSocket, addrRes->ai_addr, (int)addrRes->ai_addrlen) == SOCKET_ERROR )
+	{
 
-	if (getaddrinfo(NULL, "777", &hints, &addrRes))
-	{
-		cout << "error getaddrinfo";
+		log.write("bind error");
 		freeaddrinfo(addrRes);
 		WSACleanup();
-		return -3;
+		bIsFailed = true;
 	}
-	cout << "end getaddrinfo" << endl;
-	SOCKET ClientSocket = INVALID_SOCKET, ListenSocket = INVALID_SOCKET;
-	ListenSocket = socket(addrRes->ai_family, addrRes->ai_socktype, addrRes->ai_protocol);
-	if (ListenSocket == INVALID_SOCKET)
-	{
-		cout << "error socket";
-		WSACleanup();
-		freeaddrinfo(addrRes);
-		return -2;
-	}
-	cout << "end socket" << endl;
-	if (bind(ListenSocket, addrRes->ai_addr, (int)addrRes->ai_addrlen) == SOCKET_ERROR)
-	{
-		cout << "error bind";
-		closesocket(ListenSocket);
-		ListenSocket = INVALID_SOCKET;
-		freeaddrinfo(addrRes);
-		WSACleanup();
-		return -1;
-	}
-	cout << "end bind" << endl;
+}
 
-	if (listen(ListenSocket, 1) == SOCKET_ERROR)
-	{
-		cout << "Listen failed";
-		closesocket(ListenSocket);
-		ListenSocket = INVALID_SOCKET;
-		freeaddrinfo(addrRes);
-		WSACleanup();
-		return -1;
-	}
-	cout << "end listen" << endl;
-	ClientSocket = accept(ListenSocket, NULL, NULL);
-	if (ClientSocket == INVALID_SOCKET)
-	{
-		cout << "accept failed";
-		closesocket(ListenSocket);
-		ListenSocket = INVALID_SOCKET;
-		freeaddrinfo(addrRes);
-		WSACleanup();
-		return -1;
-	}
-	cout << "end accept" << endl;
+ServerClass::~ServerClass()
+{
 	closesocket(ListenSocket);
+	closesocket(ConnectionSocket);
+	ListenSocket = INVALID_SOCKET;
+	ConnectionSocket = INVALID_SOCKET;
+	freeaddrinfo(addrRes);
+	WSACleanup();
+	delete[] recvBuffer;
+}
 
-	string sendbuffer = "aboba server\0";
-	char* recvBuffer = new char[512];
-	ZeroMemory(recvBuffer, 512);
-	int res;
-	do
+void ServerClass::Startlisten()
+{
+	if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
 	{
-		res = recv(ClientSocket, recvBuffer, 512, NULL);
+		ErrorExit(const_cast<LPTSTR>(TEXT("error listen")));
+		closesocket(ListenSocket);
+		closesocket(ConnectionSocket);
+		ListenSocket = INVALID_SOCKET;
+		ConnectionSocket = INVALID_SOCKET;
+		freeaddrinfo(addrRes);
+		WSACleanup();
+	}
+	bIsConnected = true;
+	int res;
+	ZeroMemory(recvBuffer, 256);
+	while ((ConnectionSocket = accept(ListenSocket, NULL, NULL)) != INVALID_SOCKET)
+	{
+		{
+			std::unique_lock<std::mutex> unqlck(mtx);
+			ZeroMemory(recvBuffer, 256);
+			res = recv(ConnectionSocket, recvBuffer, 256, NULL);
+
+		}
 		if (res > 0)
 		{
-			cout << endl << "Recieve  " << recvBuffer << endl << "Size " << res << endl;
-			ZeroMemory(recvBuffer, 512);
-			if (send(ClientSocket, sendbuffer.c_str(), (int)sendbuffer.size(), NULL))
 			{
-				closesocket(ClientSocket);
-				ListenSocket = INVALID_SOCKET;
-				freeaddrinfo(addrRes);
-				WSACleanup();
-				return -1;
+				std::unique_lock<std::mutex> bUnqlck(boolMtx);
+				bRecv = true;
 			}
+			cv.notify_one();
 		}
 		else if (res == 0)
 		{
-			cout << "connect closing";
+			bIsConnected = false;
 		}
 		else
 		{
-			cout << "recv failde";
-			closesocket(ClientSocket);
-			ClientSocket = INVALID_SOCKET;
+			log.write("bind error");
+			ErrorExit(const_cast<LPTSTR>(TEXT("error")));
+			closesocket(ConnectionSocket);
+			ConnectionSocket = INVALID_SOCKET;
 			freeaddrinfo(addrRes);
 			WSACleanup();
-			return 1;
+		
 		}
-	} while (res > 0);
-	if (shutdown(ClientSocket, SD_SEND) == SOCKET_ERROR)
-	{
-		cout << "error shutdown";
-		closesocket(ClientSocket);
-		ClientSocket = INVALID_SOCKET;
-		freeaddrinfo(addrRes);
-		WSACleanup();
-		return -2;
 	}
-	closesocket(ClientSocket);
-	ClientSocket = INVALID_SOCKET;
-	freeaddrinfo(addrRes);
-	WSACleanup();
+}
 
-	delete[] recvBuffer;
-	return 0;
+bool ServerClass::getFailed()
+{
+	return bIsFailed;
+}
+
+bool ServerClass::checkConnection()
+{
+	return bIsConnected;
+}
+
+void ServerClass::loadConfig()
+{
+	char* buff = new char[256];
+	ZeroMemory(buff, 256);
+	ifstream configFile("config.txt", std::ios::in);
+	while (configFile.getline(buff, (size_t)256, '='))
+	{
+		if (strcmp(buff, "port")==0)
+		{
+			configFile.getline(buff, (size_t)256);
+			port=buff;
+		}
+		ZeroMemory(buff, 256);
+	}
+}
+
+
+char* ServerClass::getText()
+{
+	return recvBuffer;
+}
+
+bool ServerClass::checkRecv()
+{
+	std::unique_lock<std::mutex> bUnqlck(boolMtx);
+	return bRecv;
 }
