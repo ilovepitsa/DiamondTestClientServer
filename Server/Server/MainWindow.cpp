@@ -43,7 +43,7 @@ WNDCLASS NewWndClass(HINSTANCE hInst, HBRUSH BGColor, HCURSOR Cursor, HICON Icon
 
 void MainWidget(HWND hwnd)
 {
-	StaticHwnd = CreateWindow(L"static", L"aboba", WS_VISIBLE | WS_CHILD | ES_CENTER, 5,150,600,120,hwnd,NULL,NULL,NULL,NULL);
+	StaticHwnd = CreateWindow(L"static", L"startup message", WS_VISIBLE | WS_CHILD | ES_CENTER, 5,150,600,120,hwnd,NULL,NULL,NULL,NULL);
 }
 
 
@@ -61,13 +61,25 @@ LRESULT CALLBACK SoftwareMainProcedure(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp
 		hBitMap = (HBITMAP)LoadImage(hInst, L"lamp.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 		hBitMapConnected = (HBITMAP)LoadImage(hInst, L"lightLamp.bmp", IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
 		MainWidget(hWnd);
-		server = new ServerClass();
+		server = new ServerClass(hWnd);
 		if (server->getFailed())
 		{
 			exit(1);
 		}
 		th= std::thread(&ServerClass::Startlisten,server);
 		th.detach();
+		break;
+	case WM_COMMAND:
+		switch (wp)
+		{
+		case onGetText:
+			changeText();
+			break;
+		default:
+			break;
+		}
+
+
 		break;
 	case WM_PAINT:
 		hdc = BeginPaint(hWnd, &ps);
@@ -103,8 +115,6 @@ LRESULT CALLBACK SoftwareMainProcedure(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp
 void changeText()
 {
 	std::unique_lock<std::mutex> unqlck(server->mtx);
-	while (!server->checkRecv())
-		server->cv.wait(unqlck);
 
 	SetWindowTextA(StaticHwnd, server->getText());
 }

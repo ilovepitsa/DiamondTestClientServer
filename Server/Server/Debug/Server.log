@@ -1,2 +1,4 @@
-﻿  ServerClass.cpp
+﻿  MainWindow.cpp
+D:\projects\TestCaseDiamond\Server\Server\MainWindow.cpp(46,15): warning C4002: слишком много аргументов для вызова макроса, подобного функции, "CreateWindowW"
+D:\projects\TestCaseDiamond\Server\Server\MainWindow.cpp(112): warning C4715: SoftwareMainProcedure: значение возвращается не при всех путях выполнения
   Server.vcxproj -> D:\projects\TestCaseDiamond\Server\Debug\Server.exe

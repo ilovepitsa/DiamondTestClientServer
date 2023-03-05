@@ -5,7 +5,7 @@
 #include "ServerClass.h"
 
 
-
+#define onGetText 1
 
 HWND MainWnd;
 HBITMAP hBitMap;
@@ -18,3 +18,4 @@ ServerClass* server;
 LRESULT CALLBACK SoftwareMainProcedure(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp);
 WNDCLASS NewWndClass(HINSTANCE hInst, HBRUSH BGColor, HCURSOR Cursor, HICON Icon, LPCWSTR name, WNDPROC procedure);
 void MainWidget(HWND hwnd);
+void changeText();

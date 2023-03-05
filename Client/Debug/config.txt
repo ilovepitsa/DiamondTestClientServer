@@ -1,0 +1,2 @@
+port=777
+ip=localhost

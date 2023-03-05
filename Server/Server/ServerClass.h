@@ -11,7 +11,7 @@ class ServerClass
 {
 
 public:
-	ServerClass();
+	ServerClass(HWND hWnd);
 	~ServerClass();
 	void Startlisten();
 	bool getFailed();
@@ -19,8 +19,10 @@ public:
 	bool checkConnection();
 	std::mutex mtx;
 	std::condition_variable cv;
-	bool checkRecv();
+	
 private:
+	bool bIsConnected = false;
+	HWND hWnd;
 	void loadConfig();
 	ADDRINFO* addrRes = NULL;
 	SOCKET ListenSocket = INVALID_SOCKET;
@@ -29,8 +31,7 @@ private:
 	std::string port;
 	char* recvBuffer = new char[256];
 	bool bIsFailed = false;
-	bool bIsConnected = false;
-	std::mutex boolMtx;
+
 	bool bRecv = false;
 	friend void ErrorExit(LPTSTR lpszFunction);
 };

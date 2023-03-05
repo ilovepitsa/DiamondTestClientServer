@@ -40,8 +40,9 @@ void ErrorExit(LPTSTR lpszFunction)
 	LocalFree(lpDisplayBuf);
 	ExitProcess(dw);
 }
-ServerClass::ServerClass()
+ServerClass::ServerClass(HWND hWnd)
 {
+	this->hWnd = hWnd;
 	loadConfig();
 	WSAData ws;
 	if (WSAStartup(MAKEWORD(2, 2), &ws))
@@ -92,7 +93,7 @@ ServerClass::~ServerClass()
 
 void ServerClass::Startlisten()
 {
-	if (listen(ListenSocket, SOMAXCONN) == SOCKET_ERROR)
+	if (listen(ListenSocket, 1) == SOCKET_ERROR)
 	{
 		ErrorExit(const_cast<LPTSTR>(TEXT("error listen")));
 		closesocket(ListenSocket);
@@ -101,40 +102,32 @@ void ServerClass::Startlisten()
 		ConnectionSocket = INVALID_SOCKET;
 		freeaddrinfo(addrRes);
 		WSACleanup();
+		return;
 	}
-	bIsConnected = true;
+
 	int res;
 	ZeroMemory(recvBuffer, 256);
 	while ((ConnectionSocket = accept(ListenSocket, NULL, NULL)) != INVALID_SOCKET)
 	{
-		{
-			std::unique_lock<std::mutex> unqlck(mtx);
-			ZeroMemory(recvBuffer, 256);
-			res = recv(ConnectionSocket, recvBuffer, 256, NULL);
-
-		}
-		if (res > 0)
-		{
+		bIsConnected = true;
+		InvalidateRect(hWnd, NULL, TRUE);
+		do {
 			{
-				std::unique_lock<std::mutex> bUnqlck(boolMtx);
-				bRecv = true;
+				std::unique_lock<std::mutex> unqlck(mtx);
+				ZeroMemory(recvBuffer, 256);
+				res = recv(ConnectionSocket, recvBuffer, 256, NULL);
+
 			}
-			cv.notify_one();
-		}
-		else if (res == 0)
-		{
-			bIsConnected = false;
-		}
-		else
-		{
-			log.write("bind error");
-			ErrorExit(const_cast<LPTSTR>(TEXT("error")));
-			closesocket(ConnectionSocket);
-			ConnectionSocket = INVALID_SOCKET;
-			freeaddrinfo(addrRes);
-			WSACleanup();
-		
-		}
+			if (res > 0)
+			{
+				SendMessage(hWnd, WM_COMMAND, (WPARAM)1, NULL);
+			}
+			else
+			{
+				bIsConnected = false;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+		} while (res > 0);
 	}
 }
 
@@ -170,8 +163,3 @@ char* ServerClass::getText()
 	return recvBuffer;
 }
 
-bool ServerClass::checkRecv()
-{
-	std::unique_lock<std::mutex> bUnqlck(boolMtx);
-	return bRecv;
-}
