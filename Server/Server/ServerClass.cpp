@@ -155,6 +155,7 @@ void ServerClass::loadConfig()
 		}
 		ZeroMemory(buff, 256);
 	}
+	configFile.close();
 }
 
 
