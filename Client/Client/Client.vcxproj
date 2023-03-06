@@ -143,7 +143,6 @@
     <ClCompile Include="ClientClass.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="MainWindow.cpp" />
-    <ClCompile Include="Source.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ClientClass.h" />

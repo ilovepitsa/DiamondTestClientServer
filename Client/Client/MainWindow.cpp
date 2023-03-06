@@ -8,11 +8,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInst, LPSTR args, int ncmd
 {
 	font = CreateFont(16, 0, 0, 0, FW_NORMAL, 0, 0, 0, DEFAULT_CHARSET,
 		OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-		DEFAULT_QUALITY, DEFAULT_PITCH, L"Arial Black");
+		DEFAULT_QUALITY, DEFAULT_PITCH, "Arial Black");
 	hInst = hInstance;
-	auto MainClass = NewWndClass(hInst, (HBRUSH)COLOR_WINDOW, LoadCursor(NULL, IDC_ARROW), LoadIcon(NULL, IDI_APPLICATION), L"ClientWindow", SoftwareMainProcedure);
+	auto MainClass = NewWndClass(hInst, (HBRUSH)COLOR_WINDOW, LoadCursor(NULL, IDC_ARROW), LoadIcon(NULL, IDI_APPLICATION), "ClientWindow", SoftwareMainProcedure);
 
-	if (!RegisterClassW(&MainClass))
+	if (!RegisterClassA(&MainClass))
 	{
 		return -1;
 	}
@@ -21,7 +21,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInst, LPSTR args, int ncmd
 
 	toSend = new char[256];
 
-	MainWnd = CreateWindow(L"ClientWindow", L"ClientWindow", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 700, 700, NULL, NULL, hInst, NULL);
+	MainWnd = CreateWindowA("ClientWindow", "ClientWindow", WS_OVERLAPPEDWINDOW | WS_VISIBLE, 100, 100, 700, 700, NULL, NULL, hInst, NULL);
 	while (GetMessage(&MainMessage, NULL, NULL, NULL))
 	{
 		TranslateMessage(&MainMessage);
@@ -31,7 +31,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInst, LPSTR args, int ncmd
 }
 
 
-WNDCLASS NewWndClass(HINSTANCE hInst, HBRUSH BGColor, HCURSOR Cursor, HICON Icon, LPCWSTR name, WNDPROC procedure)
+WNDCLASS NewWndClass(HINSTANCE hInst, HBRUSH BGColor, HCURSOR Cursor, HICON Icon, LPCSTR name, WNDPROC procedure)
 {
 	WNDCLASS NewClass = { 0 };
 	NewClass.hInstance = hInst;
@@ -117,8 +117,8 @@ LRESULT CALLBACK SoftwareMainProcedure(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp
 void MainWidget(HWND hwnd)
 {
 
-	ConnectButtonHWND = CreateWindow(L"button", L"connect", WS_VISIBLE | WS_CHILD | ES_CENTER | BS_PUSHBUTTON | BS_OWNERDRAW, 250, 50, 150, 120, hwnd, (HMENU)OnConnectButtonClicked, NULL, NULL);
-	EditHWND = CreateWindow(L"edit", L"write you message", WS_VISIBLE | WS_CHILD, 225, 200, 200, 20, hwnd, NULL, NULL, NULL);
-	SendButtonHWND = CreateWindow(L"button", L"send", WS_VISIBLE | WS_CHILD | ES_CENTER | BS_PUSHBUTTON, 250, 240, 150, 120, hwnd, (HMENU)OnSendButtonClicked, NULL, NULL);
+	ConnectButtonHWND = CreateWindowA("button", "connect", WS_VISIBLE | WS_CHILD | ES_CENTER | BS_PUSHBUTTON | BS_OWNERDRAW, 250, 50, 150, 120, hwnd, (HMENU)OnConnectButtonClicked, NULL, NULL);
+	EditHWND = CreateWindowA("edit", "write you message", WS_VISIBLE | WS_CHILD, 225, 200, 200, 20, hwnd, NULL, NULL, NULL);
+	SendButtonHWND = CreateWindowA("button", "send", WS_VISIBLE | WS_CHILD | ES_CENTER | BS_PUSHBUTTON, 250, 240, 150, 120, hwnd, (HMENU)OnSendButtonClicked, NULL, NULL);
 
 }
